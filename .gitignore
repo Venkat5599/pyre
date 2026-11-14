@@ -1,0 +1,8 @@
+PROPOSAL.md
+RUNBOOK.md
+.env
+scan-results.json
+urls.txt
+node_modules/
+target/
+.DS_Store
