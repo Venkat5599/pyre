@@ -13,3 +13,4 @@ node_modules/
 snarkjs.min.js
 test_snapshots/
 Cargo.lock
+deck/
