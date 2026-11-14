@@ -16,9 +16,9 @@
 
 > **Status: design complete, build sprint starting.** Nothing below is deployed yet. Every row in [Live status](#live-status) says what exists today.
 
-Almost every private app on Stellar proves things with Groth16, because today it is the only proof system on Stellar that is both cheap to check on-chain and actually hides the private inputs. Groth16 has one catch: each app needs a one-time key setup, and whoever runs that setup alone holds a secret that lets them fake any proof the app will ever accept. A privacy pool built that way can be drained by its own developer, and nobody on-chain could tell.
+Almost every private app on Stellar proves things with Groth16, because today it is the only proof system on Stellar that is both cheap to check on-chain and actually hides the private inputs. Groth16 has one catch: each app needs a one-time key setup, and whoever runs that setup alone holds a secret that lets them fake any proof the app will ever accept. A privacy pool built that way could be drained by its own developer, and nobody on-chain could tell.
 
-We sampled 25 Circom projects from two public Stellar ZK build fields (443 projects in total). **22 of them ship Groth16 keys, and not one of the 22 shows a multi-party ceremony:** the keys come from the team's own single-machine scripts, or are committed with no ceremony record at all. Stellar's own ZK docs say production apps need "a real multi-party ceremony, not a single-contributor dev setup", and no tool for doing that exists on Stellar.
+We opened the proving keys that 18 Stellar Groth16 projects ship, taken from two public Stellar ZK build fields (443 projects). **15 of the 18 keys hold exactly one contribution: one machine, one person.** Two of the other three were made by a single setup script in the same repo. Stellar's own ZK docs say production apps need "a real multi-party ceremony, not a single-contributor dev setup", and no tool for doing that exists on Stellar.
 
 Pyre is that tool.
 
@@ -33,7 +33,10 @@ PYRE        ->  everyone who joins must collude to fake one proof
 | Surface | Status | The evidence |
 | --- | --- | --- |
 | Design + mechanism | Done | [`docs/PITCH.md`](docs/PITCH.md) |
-| Field measurement (0 of 22 key-shipping projects ran a ceremony) | Done | [`docs/EVIDENCE.md`](docs/EVIDENCE.md), [`scripts/scan-setups.py`](scripts/scan-setups.py) |
+| Field measurement (15 of 18 shipped keys hold one contribution) | Done | [`docs/EVIDENCE.md`](docs/EVIDENCE.md), [`experiments/read-keys/`](experiments/read-keys/) |
+| Browser contribution, 129,250-constraint circuit | Done: 62.9 s in one Chrome tab | [`experiments/README.md`](experiments/README.md) |
+| Real passkey signature verified in a Soroban contract | Done: 5 of 5 tests pass | [`experiments/passkey-on-soroban/`](experiments/passkey-on-soroban/) |
+| Verifying keys read from a live mainnet contract | Done | [`experiments/read-keys/mainnet-vk-sample.json`](experiments/read-keys/mainnet-vk-sample.json) |
 | Ceremony log contract (Soroban) | Week 1 of the sprint | — |
 | Browser contribution client | Week 2 | — |
 | Key registry + checker | Week 3 | — |
@@ -72,7 +75,8 @@ If you don't trust anyone in the list, add your own contribution. Then the key i
 
 - Groth16 keys come from two stages. Stage one is shared and public. Stage two is per-circuit, and whoever contributes to it alone knows the secret ("toxic waste") that forges proofs.
 - Stellar's ZK docs walk builders through a single-contributor setup and then tell them to replace it with a real ceremony before production. There is no Stellar tool to do that, so the walkthrough is what ships.
-- In our sample, no project with keys ran a ceremony. Their keys come from their own scripts on one machine, or are committed with no record of how they were made, and several projects generated stage one themselves instead of reusing the public files. Method and figures: [`docs/EVIDENCE.md`](docs/EVIDENCE.md).
+- We read the contribution list inside every key file the sampled projects ship. 15 of 18 hold exactly one contribution, and 8 projects generated stage one themselves instead of reusing the public files.
+- Live contracts often let an admin replace the verifying key later, which undoes any ceremony. The checker flags that too. Method and figures: [`docs/EVIDENCE.md`](docs/EVIDENCE.md).
 - The apps at risk are the ones that matter most: privacy pools holding deposits, proof-of-reserve contracts, KYC and eligibility proofs.
 
 ## How Pyre works
@@ -82,7 +86,7 @@ If you don't trust anyone in the list, add your own contribution. Then the key i
 3. **Sign it with a passkey.** The contributor signs the new key's hash with their device passkey. The contract checks the signature with Stellar's native secp256r1 verification and only accepts a contribution that builds on the previous one.
 4. **Seal it with a Stellar ledger.** The team names a future ledger number before closing. That ledger's hash, which nobody could know in advance, is applied as the final random beacon.
 5. **Register the key.** The final verifying key's hash goes into the registry, with its contributor count, transcript hash and beacon ledger. Any verifier contract can call the registry and refuse to run on a key that is not there.
-6. **Check any deployed app.** Paste a contract ID into the checker. It reads the contract's verifying key from the chain and says whether a Pyre ceremony produced it, and with how many contributors.
+6. **Check any deployed app.** Paste a contract ID into the checker. It reads the contract's verifying key from the chain and says whether a Pyre ceremony produced it, with how many contributors, whether stage one was public, and whether an admin can still swap the key.
 
 ## Architecture
 
@@ -150,9 +154,10 @@ Soroban (Rust) for the ceremony and registry contracts · snarkjs for stage-two 
 
 | Doc | Read it for |
 | --- | --- |
-| [`docs/PITCH.md`](docs/PITCH.md) | The full technical pitch: mechanism, demo, risks, day-one checks |
+| [`docs/PITCH.md`](docs/PITCH.md) | The full technical pitch: mechanism, demo, risks |
 | [`docs/EVIDENCE.md`](docs/EVIDENCE.md) | Every figure in this README with its source and how to re-derive it |
-| [`scripts/scan-setups.py`](scripts/scan-setups.py) | The script behind the 0-of-22 measurement |
+| [`experiments/README.md`](experiments/README.md) | The three day-one checks and their real outputs |
+| [`scripts/scan-setups.py`](scripts/scan-setups.py) | Repo scan for setup scripts and key files |
 
 ## License
 

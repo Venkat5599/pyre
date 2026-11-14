@@ -1,0 +1,25 @@
+[package]
+name = "pyre-passkey-check"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+soroban-sdk = "29"
+
+[dev-dependencies]
+soroban-sdk = { version = "29", features = ["testutils"] }
+hex = "0.4"
+serde_json = "1"
+p256 = { version = "0.13", features = ["ecdsa"] }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+panic = "abort"
+codegen-units = 1
+lto = true

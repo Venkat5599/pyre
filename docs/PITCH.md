@@ -6,7 +6,7 @@ Groth16 is the proof system private apps on Stellar rely on: Stellar verifies it
 
 Groth16 needs a circuit-specific setup (stage two). The party that runs it learns a secret that can produce valid-looking proofs for false statements. If one person runs it, the whole app rests on that person, forever, with no on-chain trace.
 
-Measured: of 25 sampled Circom projects from two public Stellar ZK build fields, 22 ship Groth16 keys and none ran a multi-party ceremony. Stellar's own ZK docs tell builders to run "a real multi-party ceremony" before production. No Stellar tool exists for it. Sources: [`EVIDENCE.md`](EVIDENCE.md).
+Measured: we read the contribution list inside the key files 18 Stellar Groth16 projects ship. 15 hold exactly one contribution; two of the other three come from one setup script. Stellar's own ZK docs tell builders to run "a real multi-party ceremony" before production. No Stellar tool exists for it. Sources: [`EVIDENCE.md`](EVIDENCE.md).
 
 ## Why it cannot be done well today
 
@@ -25,7 +25,7 @@ Measured: of 25 sampled Circom projects from two public Stellar ZK build fields,
 4. **Beacon.** Before closing, the team commits `beacon_ledger = N` (a future ledger). After ledger N closes, its hash is applied as the final beacon contribution. It could not have been known when the last contributor finished.
 5. **Finalise.** `finalize(ceremony, final_vk_hash, transcript_hash)` writes the record. The transcript verifier recomputes every step from public files; anyone can run it and get the same `final_vk_hash`.
 6. **Gate.** `pyre-registry.lookup(vk_hash) -> {ceremony, contributors, beacon_ledger, transcript_hash}`. A privacy pool can call it in its constructor and refuse an unregistered key.
-7. **Check.** The checker reads a deployed verifier contract over RPC (instance storage and contract code), extracts the verifying-key points, hashes them and looks them up. Output: "Pyre ceremony, N contributors, beacon ledger L" or "no ceremony on record".
+7. **Check.** The checker reads a deployed verifier contract over RPC (instance storage and contract code), extracts the verifying-key points, hashes them and looks them up. Output: "Pyre ceremony, N contributors, beacon ledger L" or "no ceremony on record", plus whether stage one was public (alpha and beta match a public stage-one file) and whether an admin can replace the key.
 
 ## Why Stellar is load-bearing
 
@@ -55,8 +55,10 @@ Measured: of 25 sampled Circom projects from two public Stellar ZK build fields,
 - **Large keys.** Big circuits make multi-hundred-MB keys, which strain phones. The client warns and recommends a laptop above a size threshold.
 - **Adoption.** A team can still ship a one-person key. Pyre makes the difference visible and gives contracts a way to refuse it.
 
-## Day-one checks
+## Day-one checks (run 2026-11-14)
 
-1. snarkjs stage-two contribution runs in a mobile browser worker for a realistic circuit (~2^16 constraints) in under a few minutes.
-2. A WebAuthn assertion from a phone passkey verifies in a Soroban test with the native secp256r1 host function, using the challenge layout above.
-3. The verifying key of at least three deployed Stellar verifier contracts can be read and matched by the checker.
+1. **Browser contribution:** a 129,250-constraint circuit contributed in 62.9 s inside one Chrome tab (8.75 s in Node). Passed.
+2. **Passkey on Soroban:** a real WebAuthn ES256 signature over the contribution hash verifies in a Soroban SDK 29 contract; replayed, tampered, edited and wrong-key cases are refused. 5 of 5 tests pass. Passed.
+3. **Reading keys:** both verifying keys read from a live mainnet contract; contribution counts read from 18 shipped key files. Passed.
+
+Details and outputs: [`../experiments/README.md`](../experiments/README.md).

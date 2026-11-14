@@ -12,6 +12,9 @@ Every figure in the README and pitch, with where it comes from and how to re-der
 | Sample projects shipping Groth16 keys or setup scripts | 22 | Repo tree contains `.zkey` files or scripts calling `zkey new` / `groth16 setup` |
 | Of those 22, projects with a multi-party ceremony | 0 | No ceremony transcript, no external contributors, no reference to a ceremony; setup scripts run every contribution on one machine |
 | Projects generating stage one themselves | 8 of 22 | Scripts call `powersoftau new` instead of using the public stage-one files |
+| Sample repos whose shipped `.zkey` files could be read | 18 | Every `.zkey` in the repo tree, contribution list read from section 10 of the file ([`../experiments/read-keys/`](../experiments/read-keys/)) |
+| Of those 18, keys holding exactly one contribution | 15 | [`../experiments/read-keys/repo-key-contributions.jsonl`](../experiments/read-keys/repo-key-contributions.jsonl) |
+| Keys holding 3-4 contributions | 3 | Two produced by a setup script in the same repo that runs every contribution locally; one of unknown origin |
 
 Method: [`../scripts/scan-setups.py`](../scripts/scan-setups.py) reads each repo's file tree through the GitHub API, finds `.zkey` / `.ptau` files and setup scripts, and counts `zkey new`, `zkey contribute`, `zkey beacon` and `powersoftau new` calls. Re-run it with any list of repo URLs, one per line.
 

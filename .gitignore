@@ -6,3 +6,10 @@ urls.txt
 node_modules/
 target/
 .DS_Store
+target/
+node_modules/
+*.zkey
+*.ptau
+snarkjs.min.js
+test_snapshots/
+Cargo.lock
