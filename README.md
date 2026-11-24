@@ -20,6 +20,8 @@ Almost every private app on Stellar proves things with Groth16, because today it
 
 We opened the proving keys that 18 Stellar Groth16 projects ship, taken from two public Stellar ZK build fields (443 projects). **15 of the 18 keys hold exactly one contribution: one machine, one person.** Two of the other three were made by a single setup script in the same repo. Stellar's own ZK docs say production apps need "a real multi-party ceremony, not a single-contributor dev setup", and no tool for doing that exists on Stellar.
 
+This is not theoretical. The first two exploits of live ZK apps anywhere were Groth16 keys with a skipped setup step. We reproduced that forgery against Stellar's own BN254 pairing check, and showed one honest contribution stops it ([`experiments/forgery-demo/`](experiments/forgery-demo/)).
+
 Pyre is the safety seal for those keys: the public makes the key together, every step is recorded on Stellar, and anyone can check the result.
 
 ```
@@ -39,6 +41,7 @@ PYRE        ->  everyone who joins must collude to fake one proof
 | Browser contribution, 129,250-constraint circuit | Done: 62.9 s in one Chrome tab | [`experiments/README.md`](experiments/README.md) |
 | Real passkey signature verified in a Soroban contract | Done: 5 of 5 tests pass | [`experiments/passkey-on-soroban/`](experiments/passkey-on-soroban/) |
 | Verifying keys read from a live mainnet contract | Done | [`experiments/read-keys/mainnet-vk-sample.json`](experiments/read-keys/mainnet-vk-sample.json) |
+| **Forgery demonstration: a false proof passes Stellar's own BN254 pairing check on a key with no phase 2, and fails after one honest contribution** | Done: 3 of 3 tests pass | [`experiments/forgery-demo/`](experiments/forgery-demo/) |
 | Ceremony contract (Soroban) | Week 1 of the sprint | — |
 | Browser contribution app | Week 2 | — |
 | Seal registry, attestations, check page, forgery demonstration | Week 3 | — |
@@ -89,7 +92,7 @@ If you don't trust anyone in the list, add your own contribution. Then the key i
 3. **Sign it with a passkey.** Each contributor has a passkey smart account. The contract calls `require_auth` on it for the exact previous and new key hashes; the account checks the device's WebAuthn signature with Stellar's native secp256r1 host function. The contract only accepts a contribution that builds on the current head.
 4. **Seal it with a Stellar ledger.** Closing the ceremony and naming a future ledger N happen in one call. After N closes, its header hash is applied with `snarkjs zkey beacon` (2¹⁰ iterated hashes) as the final step. Anyone can reproduce it byte for byte.
 5. **Register and attest.** The registry checks the key's points are on the curve and computes the key hash itself. Anyone who re-runs the transcript verification can attest to it on-chain. Any app contract can refuse a key that is not registered or not attested.
-6. **Check any deployed app.** Paste a contract ID into the checker. It reads the contract's verifying key from the chain and says whether a Pyre ceremony produced it, with how many contributors, whether stage one was public, and whether an admin can still swap the key.
+6. **Check any deployed app.** Paste a contract ID into the checker. It reads the contract's verifying key from the chain and says whether a Pyre ceremony produced it, with how many contributors, whether stage one was public, whether phase 2 was skipped entirely (delta = gamma, the exploited mistake), and whether an admin can still swap the key.
 
 ## Architecture
 
@@ -126,7 +129,7 @@ If you don't trust anyone in the list, add your own contribution. Then the key i
 | Register a key that the ceremony did not produce | registry only accepts the finalised transcript's key; the verifier re-run exposes a mismatch (planned test) |
 | One person poses as many contributors | does not break safety: one honest contributor is enough, and anyone can add their own (documented, by design) |
 | Coordinator censors a contributor or withholds a file | `contribute` is permissionless through any RPC; files are content-addressed; `fork` continues from the last valid step (planned test) |
-| Single-person key used to forge a proof | forgery demonstration: a false proof passes an existing verifier with the single-person key; the sealed key gives the attacker nothing to use (planned test) |
+| Key with no phase-2 step (delta = gamma) used to forge a proof | `forged_proof_of_a_false_statement_passes_on_a_key_with_no_phase_2` shows the attack passes Stellar's pairing check; `the_same_forgery_fails_after_one_honest_contribution` shows one honest contribution stops it; the checker flags delta = gamma |
 
 ## Why Stellar is load-bearing
 
@@ -157,7 +160,7 @@ Each week is done only when every criterion below is met and its evidence is pub
 | --- | --- | --- |
 | 1 | `pyre-ceremony` contract | `cargo test` passes for: in-order accept, stale `prev_hash` refused, contribution without the contributor's authorization refused, contribution after `commit_beacon` refused, `commit_beacon` before `min_contributors` or with `N < current + delay` refused, `fork` from a past index; contract on testnet with 3 contributions visible in an explorer |
 | 2 | Browser contribution app | 5 testnet contributions from at least 2 device types with platform passkeys; the client refuses to build on a tampered previous key; a network-capture test shows the contribution secret never leaves the worker; `snarkjs zkey verify` passes on the resulting chain |
-| 3 | `pyre-registry`, attestations, check page | registry rejects an off-curve key point and stores an on-chain-computed key hash; `attest` requires the attester's authorization; check page returns "sealed, N contributors, A attestations" for the rehearsal key and "no seal" for a single-person key; forgery demonstration passes on testnet |
+| 3 | `pyre-registry`, attestations, check page | check page flags delta = gamma; registry rejects an off-curve key point and stores an on-chain-computed key hash; `attest` requires the attester's authorization; check page returns "sealed, N contributors, A attestations" for the rehearsal key and "no seal" for a single-person key |
 | 4 | Mainnet + first public ceremony | every prerequisite in [`docs/SECURITY.md`](docs/SECURITY.md#6-mainnet-prerequisites) met; immutable contracts deployed; ceremony closed with a committed beacon ledger; final key reproduced byte-for-byte on 2 independent machines; at least 2 attestations; check page shows the seal |
 
 ## Tech stack

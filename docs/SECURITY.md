@@ -26,6 +26,7 @@ The proof of that statement is BGM17 (IACR ePrint 2017/1050), section 3 of [`PRO
 | A1 | Phase 1 had at least one honest participant | Pyre only starts from public perpetual powers-of-tau files; `ptau_hash` is stored at `open`; the checker reports whether a deployed key's α, β match a public phase-1 file |
 | A2 | At least one phase-2 contributor sampled δⱼ honestly and erased it | anyone can contribute; a relying party that trusts no listed contributor adds its own |
 | A3 | Every step of the transcript passes the checks in PROTOCOL §2 | each client verifies the previous step before contributing; `snarkjs zkey verify` is re-run by attesters and by the check page |
+| A3b | Phase 2 was not skipped (δ ≠ γ) | the checker flags δ = γ, the exact mistake exploited in production; reproduced in [`../experiments/forgery-demo/`](../experiments/forgery-demo/) |
 | A4 | The app verifies with the registered key and cannot swap it | the checker reads the deployed key and reports whether an admin can replace it |
 | A5 | Standard hardness assumptions for BN254 / BLS12-381 pairings and SHA-256 | out of Pyre's control |
 

@@ -60,7 +60,7 @@ Final δ = δ_beacon · ∏ δⱼ. If even one δⱼ was sampled uniformly and e
 - A key the app's admin can swap later. The checker reports it.
 - Not knowing *which* contributor was honest. The guarantee is "one of them"; a relying party that trusts none of them adds its own contribution (section 4 keeps that open to anyone).
 
-**Making the threat concrete (sprint acceptance test).** The test harness builds a single-contributor key whose δ is known (a `zkey beacon` step with a known value) and forges a proof of a false statement that an existing open-source Soroban Groth16 verifier accepts: with `[γ]₂ = [1]₂` as snarkjs produces, choose any b, set `A = [α]₁`, `B = [β]₂ + b·[1]₂`, `C = δ⁻¹·(b·[α]₁ − IC(x))`. The same attack against a Pyre-sealed key has no δ to use. This shows, on real bytes, exactly what a single-person setup allows.
+**The threat, run on real bytes (done 2026-11-24).** With `[γ]₂ = [1]₂` as snarkjs produces, anyone who knows δ can choose any b and set `A = [α]₁`, `B = [β]₂ + b·[1]₂`, `C = δ⁻¹·(b·[α]₁ − IC(x))`. [`../experiments/forgery-demo/`](../experiments/forgery-demo/) does exactly this for a statement with no witness (y = 5 is not a square in the BN254 field): the forged proof passes Soroban's `bn254_multi_pairing_check` on a key with no phase 2 (δ = 1, the mistake behind the first live Groth16 exploits), and the same forgery fails after one honest contribution. A person who ran phase 2 alone and kept δ is in the position of key A.
 
 ## 4. The ceremony contract
 

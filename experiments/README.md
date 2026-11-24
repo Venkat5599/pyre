@@ -1,6 +1,6 @@
 # Day-one checks
 
-Three checks that decide whether Pyre is worth building. All three were run on 2026-11-14. Results below are the real outputs.
+Checks that decide whether Pyre is worth building. Checks 1 to 3 were run on 2026-11-14, check 4 on 2026-11-24. Results below are the real outputs.
 
 ## 1. A key contribution runs in a browser
 
@@ -50,3 +50,33 @@ Two more things the live read showed, both now part of the checker design:
 
 - Alpha and beta in a verifying key come from stage one, so the checker can tell whether an app used a public stage-one file or made its own.
 - The sampled live contract lets an admin replace its verifying keys at any time. A good ceremony means nothing if one admin can swap the key afterwards, so the checker also reports "key replaceable by admin".
+
+## 4. A single-person setup can be forged, and Stellar's own pairing check accepts it
+
+`forgery-demo/` turns the threat into running code. The circuit says "I know a, with a·a = y". The claim **y = 5 is false**: 5 is a quadratic non-residue in the BN254 scalar field, so no witness exists and no honest prover can make a proof.
+
+- **Key A**: no phase-2 contribution (delta = gamma, the setup mistake behind the first live Groth16 exploits; see `docs/EVIDENCE.md`).
+- **Key B**: the same circuit after one honest phase-2 contribution whose secret was thrown away.
+
+The forgery needs only the delta scalar: `A = alpha`, `B = beta + b·G2`, `C = delta⁻¹·(b·alpha − IC(y))`. For key A delta is 1. A person who ran phase 2 alone and kept their secret is in exactly the same position.
+
+Real output of `./run.sh` (also in `forgery-demo/run-output.txt`):
+
+```
+key A: delta_2 == gamma_2 ? true
+key B: delta_2 == gamma_2 ? false
+honest proof, y = 9, key B: true
+5 is a non-residue in Fr: true
+FORGED proof of a false statement (y = 5), key A (no phase 2): true
+same forgery, key B (one honest contribution): false
+test test::the_same_forgery_fails_after_one_honest_contribution ... ok
+test test::forged_proof_of_a_false_statement_passes_on_a_key_with_no_phase_2 ... ok
+test test::an_honest_proof_of_a_true_statement_passes_with_the_contributed_key ... ok
+test result: ok. 3 passed; 0 failed
+```
+
+The last four lines run the Groth16 equation through Soroban SDK 29's `bn254().pairing_check`, the `bn254_multi_pairing_check` host function Stellar apps verify with. The honest-proof test shows the harness accepts valid proofs, so the failed forgery on key B is the key doing its job, not an encoding error. The harness is test code for this demonstration; Pyre ships no verifier.
+
+Run it: `cd experiments/forgery-demo && ./run.sh` (needs Node and Rust; keys are regenerated each run).
+
+**Also checked:** none of the 38 key files in the 18 sampled projects has zero phase-2 contributions, and the sampled live mainnet contract has `delta != gamma`. Stellar's sampled keys have the one-person problem, not the no-person one. The checker reports both.
