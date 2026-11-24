@@ -6,7 +6,7 @@ Groth16 is the proof system private apps on Stellar rely on: Stellar verifies it
 
 Groth16 needs a circuit-specific setup (stage two). The party that runs it learns a secret that can produce valid-looking proofs for false statements. If one person runs it, the whole app rests on that person, forever, with no on-chain trace.
 
-Measured: we read the contribution list inside the key files 18 Stellar Groth16 projects ship. 15 hold exactly one contribution; two of the other three come from one setup script. Stellar's own ZK docs tell builders to run "a real multi-party ceremony" before production. No Stellar tool exists for it. Sources: [`EVIDENCE.md`](EVIDENCE.md).
+Measured: we scanned 374 Stellar ZK repositories and read the key files of the 77 Groth16 ones that ship them. 74 (96%) were made by one person; 9 can be forged by anyone (6 skipped the setup step, 3 used only a public beacon). Stellar's own ZK docs tell builders to run "a real multi-party ceremony" before production. No Stellar tool exists for it. Sources: [`EVIDENCE.md`](EVIDENCE.md).
 
 ## Why it cannot be done well today
 

@@ -57,7 +57,7 @@ Two more things the live read showed, both now part of the checker design:
 
 - **Key A**: no phase-2 contribution (delta = gamma, the setup mistake behind the first live Groth16 exploits; see `docs/EVIDENCE.md`).
 - **Key B**: the same circuit after one honest phase-2 contribution whose secret was thrown away.
-- **Key C**: a **one-person key**, the pattern in 15 of the 18 sampled Stellar projects. One person made the single phase-2 contribution and kept the value they made it from. The key looks normal (delta != gamma, one contribution), but its maker can recompute delta and forge.
+- **Key C**: a **one-person key**, the pattern in 74 of the 77 Stellar Groth16 keys the full scan read. One person made the single phase-2 step and kept the value they made it from. The key looks normal (delta != gamma, one step), but its maker can recompute delta and forge. The demo builds that step with `zkey beacon` so the secret is reproducible in a test, which writes the value into the key file; a real one-person key made with `zkey contribute` does not store it, so only its maker can forge. A key whose only phase-2 steps are beacons is forgeable by anyone, and the full scan found 3 shipped that way.
 
 The forgery needs only the delta scalar: `A = alpha`, `B = beta + b·G2`, `C = delta⁻¹·(b·alpha − IC(y))`. For key A delta is 1. A person who ran phase 2 alone and kept their secret is in exactly the same position.
 
@@ -84,4 +84,4 @@ The test lines run the Groth16 equation through Soroban SDK 29's `bn254().pairin
 
 Run it: `cd experiments/forgery-demo && ./run.sh` (needs Node and Rust; keys are regenerated each run).
 
-**Also checked:** none of the 38 key files in the 18 sampled projects has zero phase-2 contributions, and the sampled live mainnet contract has `delta != gamma`. Stellar's sampled keys have the one-person problem, not the no-person one. Key C is that case, and it is just as forgeable by the person who made it. The checker reports both.
+**Also checked:** the first sample (38 key files from 18 projects) had no zero-contribution key, but the full scan of 374 repositories ([`full-scan/`](full-scan/)) found 6 that ship one (key A's case) and 3 whose only phase-2 steps are public beacons, which anyone can recompute. The common Stellar case is the one-person key, key C, which is just as forgeable by the person who made it. The checker reports both.
