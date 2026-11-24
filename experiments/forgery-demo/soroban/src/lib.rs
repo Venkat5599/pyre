@@ -51,4 +51,7 @@ mod test {
 
     #[test]
     fn the_same_forgery_fails_after_one_honest_contribution() { assert!(!check("B")); }
+
+    #[test]
+    fn a_one_person_key_lets_its_maker_forge_a_proof_of_a_false_statement() { assert!(check_with("proofC", "C")); }
 }

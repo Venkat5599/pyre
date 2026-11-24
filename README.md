@@ -41,7 +41,7 @@ PYRE        ->  everyone who joins must collude to fake one proof
 | Browser contribution, 129,250-constraint circuit | Done: 62.9 s in one Chrome tab | [`experiments/README.md`](experiments/README.md) |
 | Real passkey signature verified in a Soroban contract | Done: 5 of 5 tests pass | [`experiments/passkey-on-soroban/`](experiments/passkey-on-soroban/) |
 | Verifying keys read from a live mainnet contract | Done | [`experiments/read-keys/mainnet-vk-sample.json`](experiments/read-keys/mainnet-vk-sample.json) |
-| **Forgery demonstration: a false proof passes Stellar's own BN254 pairing check on a key with no phase 2, and fails after one honest contribution** | Done: 3 of 3 tests pass | [`experiments/forgery-demo/`](experiments/forgery-demo/) |
+| **Forgery demonstration on Stellar's own BN254 pairing check: the maker of a one-person key forges a proof of a false statement; a key with no phase 2 is forgeable by anyone; one honest contribution stops both** | Done: 4 of 4 tests pass | [`experiments/forgery-demo/`](experiments/forgery-demo/) |
 | Ceremony contract (Soroban) | Week 1 of the sprint | — |
 | Browser contribution app | Week 2 | — |
 | Seal registry, attestations, check page, forgery demonstration | Week 3 | — |

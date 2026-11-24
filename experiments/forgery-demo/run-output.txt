@@ -9,15 +9,20 @@ labels: 3
 [32mWritten successfully:[0m sqrt.r1cs
 [32mWritten successfully:[0m sqrt_js/sqrt.wasm
 [32mEverything went okay[0m
+key C maker's kept value (fresh each run): f9fb8f97...
 key A: delta_2 == gamma_2 ? true
 key B: delta_2 == gamma_2 ? false
+key C (one person): delta_2 == gamma_2 ? false
+key C: the maker's kept secret reproduces delta_2 ? true
 honest proof, y = 9, key B: true
 5 is a non-residue in Fr: true
 FORGED proof of a false statement (y = 5), key A (no phase 2): true
 same forgery, key B (one honest contribution): false
+FORGED proof of a false statement (y = 5), key C (one person, secret kept): true
 ok
-test test::the_same_forgery_fails_after_one_honest_contribution ... ok
-test test::forged_proof_of_a_false_statement_passes_on_a_key_with_no_phase_2 ... ok
+test test::a_one_person_key_lets_its_maker_forge_a_proof_of_a_false_statement ... ok
 test test::an_honest_proof_of_a_true_statement_passes_with_the_contributed_key ... ok
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test test::forged_proof_of_a_false_statement_passes_on_a_key_with_no_phase_2 ... ok
+test test::the_same_forgery_fails_after_one_honest_contribution ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

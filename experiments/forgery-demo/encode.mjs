@@ -10,7 +10,7 @@ const g1 = (p) => { const a = G1.toObject(G1.toAffine(p)); return h(a[0]) + h(a[
 const g2 = (p) => { const a = G2.toObject(G2.toAffine(p)); return h(a[0][1]) + h(a[0][0]) + h(a[1][1]) + h(a[1][0]); };
 const r = JSON.parse(readFileSync("result.json"));
 const out = {};
-for (const [name, file] of [["A", "keyA.zkey"], ["B", "keyB.zkey"]]) {
+for (const [name, file] of [["A", "keyA.zkey"], ["B", "keyB.zkey"], ["C", "keyC.zkey"]]) {
   const vk = unstringifyBigInts(await snarkjs.zKey.exportVerificationKey(file));
   const icx = G1.add(G1.fromObject(vk.IC[0]), G1.timesFr(G1.fromObject(vk.IC[1]), Fr.e(5n)));
   out[name] = {
@@ -21,6 +21,8 @@ for (const [name, file] of [["A", "keyA.zkey"], ["B", "keyB.zkey"]]) {
 // forged proof (built against key A); for key B the attacker can only reuse the same delta = 1 recipe
 const p = unstringifyBigInts(r.forged_proof_key_A);
 out.proof = { neg_a: g1(G1.neg(G1.fromObject(p.pi_a))), b: g2(G2.fromObject(p.pi_b)), c: g1(G1.fromObject(p.pi_c)) };
+const pc = unstringifyBigInts(r.forged_proof_key_C);
+out.proofC = { neg_a: g1(G1.neg(G1.fromObject(pc.pi_a))), b: g2(G2.fromObject(pc.pi_b)), c: g1(G1.fromObject(pc.pi_c)) };
 // honest proof of a TRUE statement (3^2 = 9) with key B, to prove the harness accepts valid proofs
 const hp = await snarkjs.groth16.fullProve({ a: 3 }, "sqrt_js/sqrt.wasm", "keyB.zkey");
 const pr = unstringifyBigInts(hp.proof);
