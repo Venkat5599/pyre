@@ -18,7 +18,7 @@
 
 Almost every private app on Stellar proves things with Groth16, because today it is the only proof system on Stellar that is both cheap to check on-chain and actually hides the private inputs. Groth16 has one catch: each app needs a one-time key setup, and whoever runs that setup alone holds a secret that lets them fake any proof the app will ever accept. A privacy pool built that way could be drained by its own developer, and nobody on-chain could tell.
 
-We opened the proving keys that 18 Stellar Groth16 projects ship, taken from two public Stellar ZK build fields (443 projects). **15 of the 18 keys hold exactly one contribution: one machine, one person.** Two of the other three were made by a single setup script in the same repo. Stellar's own ZK docs say production apps need "a real multi-party ceremony, not a single-contributor dev setup", and no tool for doing that exists on Stellar.
+We scanned 374 public Stellar ZK repositories. 189 use Groth16, which needs a setup for every circuit. 77 of those ship a key file we could read, and **in 74 of them (96%) every key was made by one person.** 9 ship a key anyone can forge proofs against: 6 skipped the setup step entirely and 3 used only a public beacon, which anyone can recompute. Stellar's own ZK docs say production apps need "a real multi-party ceremony, not a single-contributor dev setup", and no tool for doing that exists on Stellar.
 
 This is not theoretical. The first two exploits of live ZK apps anywhere were Groth16 keys with a skipped setup step. We reproduced that forgery against Stellar's own BN254 pairing check, and showed one honest contribution stops it ([`experiments/forgery-demo/`](experiments/forgery-demo/)).
 
@@ -37,7 +37,7 @@ PYRE        ->  everyone who joins must collude to fake one proof
 | Design + mechanism | Done | [`docs/PITCH.md`](docs/PITCH.md) |
 | Protocol spec: MPC, passkey auth, randomness, host functions | Done | [`docs/PROTOCOL.md`](docs/PROTOCOL.md) |
 | Trust model, threat model, mainnet prerequisites, recovery | Done | [`docs/SECURITY.md`](docs/SECURITY.md) |
-| Field measurement (15 of 18 shipped keys hold one contribution) | Done | [`docs/EVIDENCE.md`](docs/EVIDENCE.md), [`experiments/read-keys/`](experiments/read-keys/) |
+| Field measurement (374 repos scanned; 74 of 77 readable Groth16 keys made by one person; 9 forgeable by anyone) | Done | [`docs/EVIDENCE.md`](docs/EVIDENCE.md), [`experiments/full-scan/`](experiments/full-scan/) |
 | Browser contribution, 129,250-constraint circuit | Done: 62.9 s in one Chrome tab | [`experiments/README.md`](experiments/README.md) |
 | Real passkey signature verified in a Soroban contract | Done: 5 of 5 tests pass | [`experiments/passkey-on-soroban/`](experiments/passkey-on-soroban/) |
 | Verifying keys read from a live mainnet contract | Done | [`experiments/read-keys/mainnet-vk-sample.json`](experiments/read-keys/mainnet-vk-sample.json) |
@@ -81,7 +81,7 @@ If you don't trust anyone in the list, add your own contribution. Then the key i
 
 - Groth16 keys come from two stages. Stage one is shared and public. Stage two is per-circuit, and whoever contributes to it alone knows the secret ("toxic waste") that forges proofs.
 - Stellar's ZK docs walk builders through a single-contributor setup and then tell them to replace it with a real ceremony before production. There is no Stellar tool to do that, so the walkthrough is what ships.
-- We read the contribution list inside every key file the sampled projects ship. 15 of 18 hold exactly one contribution, and 8 projects generated stage one themselves instead of reusing the public files.
+- We read the contribution list inside every key file the scanned Groth16 repositories ship. 74 of 77 were made by one person, 9 can be forged by anyone (6 skipped the per-circuit step, 3 used only a public beacon), and 67 repositories generated stage one themselves instead of reusing the public files.
 - Live contracts often let an admin replace the verifying key later, which undoes any ceremony. The checker flags that too. Method and figures: [`docs/EVIDENCE.md`](docs/EVIDENCE.md).
 - The apps at risk are the ones that matter most: privacy pools holding deposits, proof-of-reserve contracts, KYC and eligibility proofs.
 

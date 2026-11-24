@@ -19,7 +19,7 @@ This file specifies exactly what Pyre runs: the multi-party computation, how a p
 
 A Groth16 proving/verifying key pair for one circuit. Its "toxic waste" is the set of secret scalars used to build it: τ, α, β from phase 1 (shared by every circuit) and δ from phase 2 (per circuit). Anyone who knows them can make proofs for false statements that the verifier accepts.
 
-Pyre does not run phase 1. Every ceremony starts from a **public perpetual powers-of-tau file** (the same `ppot_0080_*.ptau` series the day-one check used), whose own transcript is public. Pyre runs **phase 2**, the per-circuit part that, in the 18 Stellar keys we measured, was almost always done by one person.
+Pyre does not run phase 1. Every ceremony starts from a **public perpetual powers-of-tau file** (the same `ppot_0080_*.ptau` series the day-one check used), whose own transcript is public. Pyre runs **phase 2**, the per-circuit part that, in 74 of the 77 Stellar Groth16 repositories whose keys we read, was done by one person.
 
 ## 2. The MPC: Groth16 phase 2
 
@@ -60,7 +60,7 @@ Final δ = δ_beacon · ∏ δⱼ. If even one δⱼ was sampled uniformly and e
 - A key the app's admin can swap later. The checker reports it.
 - Not knowing *which* contributor was honest. The guarantee is "one of them"; a relying party that trusts none of them adds its own contribution (section 4 keeps that open to anyone).
 
-**The threat, run on real bytes (done 2026-11-24).** With `[γ]₂ = [1]₂` as snarkjs produces, anyone who knows δ can choose any b and set `A = [α]₁`, `B = [β]₂ + b·[1]₂`, `C = δ⁻¹·(b·[α]₁ − IC(x))`. [`../experiments/forgery-demo/`](../experiments/forgery-demo/) does exactly this for a statement with no witness (y = 5 is not a square in the BN254 field): the forged proof passes Soroban's `bn254_multi_pairing_check` on a key with no phase 2 (δ = 1, the mistake behind the first live Groth16 exploits), and the same forgery fails after one honest contribution. Key C in the same demo is exactly the Stellar pattern: one person made the single phase-2 contribution and kept the value behind it. Its key looks normal (δ ≠ γ), yet its maker recomputes δ and the forged proof passes the same pairing check (4 of 4 tests pass).
+**The threat, run on real bytes (done 2026-11-24).** With `[γ]₂ = [1]₂` as snarkjs produces, anyone who knows δ can choose any b and set `A = [α]₁`, `B = [β]₂ + b·[1]₂`, `C = δ⁻¹·(b·[α]₁ − IC(x))`. [`../experiments/forgery-demo/`](../experiments/forgery-demo/) does exactly this for a statement with no witness (y = 5 is not a square in the BN254 field): the forged proof passes Soroban's `bn254_multi_pairing_check` on a key with no phase 2 (δ = 1, the mistake behind the first live Groth16 exploits), and the same forgery fails after one honest contribution. Key C in the same demo is exactly the Stellar pattern: one person made the single phase-2 contribution and kept the value behind it (the test simulates this with a beacon step so δ is reproducible; see the experiments README). Its key looks normal (δ ≠ γ), yet its maker recomputes δ and the forged proof passes the same pairing check (4 of 4 tests pass).
 
 ## 4. The ceremony contract
 

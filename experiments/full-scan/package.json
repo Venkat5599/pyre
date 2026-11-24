@@ -1,0 +1,10 @@
+{
+  "name": "pyre-full-scan",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@iden3/binfileutils": "^0.0.12",
+    "snarkjs": "^0.7.5",
+    "ffjavascript": "^0.3.1"
+  }
+}
