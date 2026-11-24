@@ -20,10 +20,10 @@ Measured: we read the contribution list inside the key files 18 Stellar Groth16 
 ## Mechanism
 
 1. **Open.** `open(circuit_hash, initial_key_hash, curve, min_contributors, closes_at)` on `pyre-ceremony`. The initial key comes from the public stage-one files, never a team-made stage one.
-2. **Contribute.** The browser client fetches the latest key, runs the stage-two contribution in a web worker with fresh randomness, uploads the new key to content-addressed storage, and calls `contribute(ceremony, prev_hash, new_hash, passkey_pubkey, webauthn_sig)`.
-3. **Contract checks.** `prev_hash` equals the current head; the WebAuthn signature over a challenge containing `new_hash` verifies with Stellar's native secp256r1 host function; the ceremony is still open. The head moves to `new_hash`.
-4. **Beacon.** Before closing, the team commits `beacon_ledger = N` (a future ledger). After ledger N closes, its hash is applied as the final beacon contribution. It could not have been known when the last contributor finished.
-5. **Finalise.** `finalize(ceremony, final_vk_hash, transcript_hash)` writes the record. The transcript verifier recomputes every step from public files; anyone can run it and get the same `final_vk_hash`.
+2. **Contribute.** The browser client fetches the latest key, runs the stage-two contribution in a web worker with fresh randomness, uploads the new key to content-addressed storage, and calls `contribute(id, contributor, prev_hash, new_hash, file_cid)`, authorized by the contributor's passkey smart account. Exact flow: [`PROTOCOL.md`](PROTOCOL.md#5-passkey-to-soroban-authorization).
+3. **Contract checks.** `prev_hash` equals the current head; the contributor's passkey smart account authorizes the exact hashes through `require_auth` (its `__check_auth` verifies the WebAuthn signature with Stellar's native secp256r1 host function); the ceremony is still open. The head moves to `new_hash`.
+4. **Beacon.** Closing the ceremony and committing `beacon_ledger = N` (at least `delay` ledgers ahead) happen in one call. After ledger N closes, its header hash is applied with `snarkjs zkey beacon` as the final contribution. The contract stores N; the hash is checked off-chain, since Soroban cannot read past ledger hashes. See [`PROTOCOL.md`](PROTOCOL.md#6-randomness).
+5. **Finalise.** `finalize(id, vk_bytes, final_cid)` validates the key points and computes the key hash on-chain. Anyone who re-runs `snarkjs zkey verify` from the public files can `attest` to it.
 6. **Gate.** `pyre-registry.lookup(vk_hash) -> {ceremony, contributors, beacon_ledger, transcript_hash}`. A privacy pool can call it in its constructor and refuse an unregistered key.
 7. **Check.** The checker reads a deployed verifier contract over RPC (instance storage and contract code), extracts the verifying-key points, hashes them and looks them up. Output: "Pyre ceremony, N contributors, beacon ledger L" or "no ceremony on record", plus whether stage one was public (alpha and beta match a public stage-one file) and whether an admin can replace the key.
 
@@ -40,13 +40,13 @@ Measured: we read the contribution list inside the key files 18 Stellar Groth16 
 2. Open a ceremony for its circuit. Five people contribute from their phones; each passkey prompt appears; the log grows on Stellar.
 3. A contribution built on an old key is **refused**. A replayed signature is **refused**. A contribution after close is **refused**.
 4. Ledger N closes; its hash seals the key. The transcript verifier re-runs and prints the same key hash.
-5. Paste the re-keyed contract: **green, 5 contributors, beacon ledger N.**
+5. Paste the sealed demo contract: **green, N contributors, A attestations, beacon ledger L.**
 
 ## Who pays / who uses
 
 - Ecosystem infrastructure: free and open source, MIT.
 - Users: every Groth16 team on Stellar (225 Circom projects with public code across two public Stellar ZK build fields), teams moving to mainnet, and anyone reviewing an app before depositing.
-- First user: an existing Groth16 app already live on Stellar mainnet, re-keyed through Pyre in week 4.
+- First sealed key: Pyre's own public ceremony in week 4, open to anyone. Ceremonies for live apps follow it.
 
 ## Risks
 

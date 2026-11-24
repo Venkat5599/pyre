@@ -20,7 +20,7 @@ Almost every private app on Stellar proves things with Groth16, because today it
 
 We opened the proving keys that 18 Stellar Groth16 projects ship, taken from two public Stellar ZK build fields (443 projects). **15 of the 18 keys hold exactly one contribution: one machine, one person.** Two of the other three were made by a single setup script in the same repo. Stellar's own ZK docs say production apps need "a real multi-party ceremony, not a single-contributor dev setup", and no tool for doing that exists on Stellar.
 
-Pyre is that tool.
+Pyre is the safety seal for those keys: the public makes the key together, every step is recorded on Stellar, and anyone can check the result.
 
 ```
 ONE LAPTOP  ->  one person can fake every proof
@@ -33,14 +33,16 @@ PYRE        ->  everyone who joins must collude to fake one proof
 | Surface | Status | The evidence |
 | --- | --- | --- |
 | Design + mechanism | Done | [`docs/PITCH.md`](docs/PITCH.md) |
+| Protocol spec: MPC, passkey auth, randomness, host functions | Done | [`docs/PROTOCOL.md`](docs/PROTOCOL.md) |
+| Trust model, threat model, mainnet prerequisites, recovery | Done | [`docs/SECURITY.md`](docs/SECURITY.md) |
 | Field measurement (15 of 18 shipped keys hold one contribution) | Done | [`docs/EVIDENCE.md`](docs/EVIDENCE.md), [`experiments/read-keys/`](experiments/read-keys/) |
 | Browser contribution, 129,250-constraint circuit | Done: 62.9 s in one Chrome tab | [`experiments/README.md`](experiments/README.md) |
 | Real passkey signature verified in a Soroban contract | Done: 5 of 5 tests pass | [`experiments/passkey-on-soroban/`](experiments/passkey-on-soroban/) |
 | Verifying keys read from a live mainnet contract | Done | [`experiments/read-keys/mainnet-vk-sample.json`](experiments/read-keys/mainnet-vk-sample.json) |
-| Ceremony log contract (Soroban) | Week 1 of the sprint | — |
-| Browser contribution client | Week 2 | — |
-| Key registry + checker | Week 3 | — |
-| First real ceremony for a live mainnet app | Week 4 | — |
+| Ceremony contract (Soroban) | Week 1 of the sprint | — |
+| Browser contribution app | Week 2 | — |
+| Seal registry, attestations, check page, forgery demonstration | Week 3 | — |
+| Mainnet deploy + Pyre's first public ceremony | Week 4 | — |
 
 ## The 20-second pitch
 
@@ -60,7 +62,7 @@ If you don't trust anyone in the list, add your own contribution. Then the key i
 - [Attack → test](#attack--test)
 - [Why Stellar is load-bearing](#why-stellar-is-load-bearing)
 - [Who uses it](#who-uses-it)
-- [Build plan](#build-plan)
+- [Roadmap and acceptance criteria](#roadmap-and-acceptance-criteria)
 - [Tech stack](#tech-stack)
 - [Documentation](#documentation)
 - [License](#license)
@@ -68,7 +70,8 @@ If you don't trust anyone in the list, add your own contribution. Then the key i
 ## What Pyre is NOT
 
 - **Not a new proof system.** Multi-party key setups are a known practice in cryptography. What Pyre adds is doing it natively on Stellar: an on-chain contribution log, passkey-signed contributors, a key registry other contracts can check, and a checker for verifiers already deployed.
-- **Not a privacy app.** Pyre holds no funds and sees no user data. It makes the private apps people already build safe to trust.
+- **Not a privacy app itself.** Pyre holds no funds and sees no user data. It is the seal that makes the private apps people already build safe to trust.
+- **Not new cryptography.** The ceremony is the published Groth16 phase-2 protocol (BGM17) run with snarkjs. Pyre adds the on-chain record, passkey authorization, the registry and the checks. Exact protocol: [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
 - **Not an auditor of circuits.** A safe key does not make a buggy circuit correct. Pyre answers one question, who could forge a proof, and answers it with a record anyone can re-check.
 
 ## The problem I set out to solve
@@ -83,32 +86,33 @@ If you don't trust anyone in the list, add your own contribution. Then the key i
 
 1. **Open a ceremony.** A team uploads its compiled circuit. Pyre starts from the public stage-one files and writes the circuit hash and the opening key hash to the ceremony contract on Stellar.
 2. **Contribute from a browser.** Each contributor's tab downloads the latest key, mixes in fresh randomness in a web worker, and uploads the new key. The randomness is wiped when the tab closes.
-3. **Sign it with a passkey.** The contributor signs the new key's hash with their device passkey. The contract checks the signature with Stellar's native secp256r1 verification and only accepts a contribution that builds on the previous one.
-4. **Seal it with a Stellar ledger.** The team names a future ledger number before closing. That ledger's hash, which nobody could know in advance, is applied as the final random beacon.
-5. **Register the key.** The final verifying key's hash goes into the registry, with its contributor count, transcript hash and beacon ledger. Any verifier contract can call the registry and refuse to run on a key that is not there.
+3. **Sign it with a passkey.** Each contributor has a passkey smart account. The contract calls `require_auth` on it for the exact previous and new key hashes; the account checks the device's WebAuthn signature with Stellar's native secp256r1 host function. The contract only accepts a contribution that builds on the current head.
+4. **Seal it with a Stellar ledger.** Closing the ceremony and naming a future ledger N happen in one call. After N closes, its header hash is applied with `snarkjs zkey beacon` (2¹⁰ iterated hashes) as the final step. Anyone can reproduce it byte for byte.
+5. **Register and attest.** The registry checks the key's points are on the curve and computes the key hash itself. Anyone who re-runs the transcript verification can attest to it on-chain. Any app contract can refuse a key that is not registered or not attested.
 6. **Check any deployed app.** Paste a contract ID into the checker. It reads the contract's verifying key from the chain and says whether a Pyre ceremony produced it, with how many contributors, whether stage one was public, and whether an admin can still swap the key.
 
 ## Architecture
 
 | Component | What it does |
 | --- | --- |
-| `pyre-ceremony` (Soroban) | Ordered, append-only contribution log per ceremony. Checks passkey signatures, the previous-hash chain, the open/closed window and the beacon ledger. |
-| `pyre-registry` (Soroban) | Maps a verifying-key hash to its ceremony record. One read call for any contract that wants to gate on it. |
-| Contribution client (web) | Runs the stage-two contribution in a web worker, signs with WebAuthn, uploads the key to content-addressed storage. |
-| Transcript verifier (CLI) | Re-checks the whole ceremony math from the public files and the on-chain log. Anyone can run it. |
+| `pyre-ceremony` (Soroban) | Ordered, append-only contribution log per ceremony. Authorizes contributors through their passkey smart accounts (`require_auth`), enforces the previous-hash chain, the close window, the committed beacon ledger, and `fork` for recovery. |
+| `pyre-registry` (Soroban) | Validates key points, computes the key hash on-chain, stores the ceremony record and the list of attesters. One read call for any contract that wants to gate on it. |
+| Contribution app (web) | Verifies the previous step, runs the stage-two contribution in a web worker, signs with the passkey account, uploads the key to content-addressed storage. |
+| Transcript verification | `snarkjs zkey verify` plus the beacon step, re-run by anyone from the public files and the on-chain log. Pyre does not reimplement it. |
 | Checker (web) | Reads a deployed verifier's key over Stellar RPC and matches it against the registry. |
 
-**What runs where.** The chain enforces order, signatures, no backdating and the beacon. The heavy math (checking each key really extends the last one) is re-run by anyone with the transcript verifier, because it is far too large for a contract. Both halves are public, so neither has to be trusted.
+**What runs where.** The chain enforces order, signatures, no backdating and the beacon. The heavy math (checking each key really extends the last one) is re-run by anyone with snarkjs and recorded as on-chain attestations, because it is far too large for a contract. Trust and threat model: [`docs/SECURITY.md`](docs/SECURITY.md). Both halves are public, so neither has to be trusted.
 
 ## Where the guarantee is enforced
 
 | Guarantee | Enforced by | Test |
 | --- | --- | --- |
 | A contribution must build on the previous one | `pyre-ceremony` previous-hash check | planned |
-| Each contribution is signed by the device that made it | `pyre-ceremony` secp256r1 check | planned |
+| Each contribution is authorized by the device that made it | `require_auth` on the contributor's passkey smart account (secp256r1) | planned |
 | Nothing can be added after the ceremony closes | `pyre-ceremony` window check | planned |
 | The final beacon was unknowable at close | beacon ledger committed before close | planned |
-| Every key extends the last one correctly | transcript verifier (public re-run) | planned |
+| Every key extends the last one correctly | client check before each contribution + public `snarkjs zkey verify` + attestations | planned |
+| The registered key is the one submitted | key hash computed on-chain by `pyre-registry` | planned |
 | A contract can refuse an unregistered key | `pyre-registry` lookup | planned |
 
 ## Attack → test
@@ -121,13 +125,21 @@ If you don't trust anyone in the list, add your own contribution. Then the key i
 | Pick the beacon after seeing the final key | beacon ledger must be committed before close (planned test) |
 | Register a key that the ceremony did not produce | registry only accepts the finalised transcript's key; the verifier re-run exposes a mismatch (planned test) |
 | One person poses as many contributors | does not break safety: one honest contributor is enough, and anyone can add their own (documented, by design) |
+| Coordinator censors a contributor or withholds a file | `contribute` is permissionless through any RPC; files are content-addressed; `fork` continues from the last valid step (planned test) |
+| Single-person key used to forge a proof | forgery demonstration: a false proof passes an existing verifier with the single-person key; the sealed key gives the attacker nothing to use (planned test) |
 
 ## Why Stellar is load-bearing
 
-- **Passkeys are checked natively.** Stellar verifies secp256r1 signatures in contracts, so a contributor's phone can sign their contribution and the chain checks it with no extra wallet.
-- **Ledgers make the beacon and the ordering.** Ledger closes give every contribution a time nobody can rewrite, and a future ledger hash is a beacon nobody can predict.
-- **Contracts can gate on it.** A privacy pool on Soroban can call the registry during setup and refuse to start on a key one person made.
-- **It matches the proofs Stellar checks.** Both curves Stellar verifies natively, BN254 and BLS12-381, are supported end to end.
+| Stellar feature | Host function / mechanism | Protocol | What it does for Pyre |
+| --- | --- | --- | --- |
+| Passkeys checked in contracts | `verify_sig_ecdsa_secp256r1` inside the passkey account's `__check_auth` | 21 | contributors sign with a fingerprint, no wallet or seed phrase |
+| Built-in authorization | `require_auth_for_args`, host-managed nonces | base | each signature covers the exact hashes and cannot be replayed |
+| Ledger order | `get_ledger_sequence` | base | no contribution can be backdated; the beacon ledger is fixed ahead of time |
+| Key validation on-chain | `bls12_381_g1_is_on_curve`, `bls12_381_g2_is_on_curve`, subgroup checks; `bn254_g1_is_on_curve` | 22; 26 | the registry rejects malformed keys |
+| Hashing | `compute_hash_sha256` | base | the registry computes the key hash itself |
+| The proofs the seal protects | `bls12_381_multi_pairing_check` / `bn254_multi_pairing_check`, `bn254_g1_add`, `bn254_g1_mul`, Poseidon/Poseidon2 | 22 / 25 (BN254 MSM and field ops: 26) | apps verify with Stellar's own host functions; Pyre writes no verifier |
+
+A Soroban app can call the registry at setup and refuse a key that one person made. A transcript on a website cannot be read by a contract. Full mapping: [`docs/PROTOCOL.md`](docs/PROTOCOL.md#8-stellar-host-functions-used).
 
 ## Who uses it
 
@@ -135,26 +147,30 @@ If you don't trust anyone in the list, add your own contribution. Then the key i
 - Teams heading to mainnet, who need a ceremony before real money arrives.
 - Users and reviewers who want to check an app before trusting it: the checker answers in one paste.
 
-The first ceremony re-keys an existing Groth16 app that is already live on Stellar mainnet.
+The first sealed key is Pyre's own public ceremony, open to anyone, so the launch depends on no other team. Ceremonies for live apps follow it.
 
-## Build plan
+## Roadmap and acceptance criteria
 
-| Week | Ships |
-| --- | --- |
-| 1 | `pyre-ceremony` contract with passkey checks, window and beacon commitment, unit tests with real signatures, testnet deploy |
-| 2 | Browser contribution client: web-worker contribution, WebAuthn signing, content-addressed upload, resume on reload |
-| 3 | `pyre-registry`, transcript verifier CLI, checker page reading deployed verifiers |
-| 4 | Mainnet deploy, first public ceremony for a live mainnet app with independent contributors, docs and a guide for other teams |
+Each week is done only when every criterion below is met and its evidence is public.
+
+| Week | Ships | Accepted when |
+| --- | --- | --- |
+| 1 | `pyre-ceremony` contract | `cargo test` passes for: in-order accept, stale `prev_hash` refused, contribution without the contributor's authorization refused, contribution after `commit_beacon` refused, `commit_beacon` before `min_contributors` or with `N < current + delay` refused, `fork` from a past index; contract on testnet with 3 contributions visible in an explorer |
+| 2 | Browser contribution app | 5 testnet contributions from at least 2 device types with platform passkeys; the client refuses to build on a tampered previous key; a network-capture test shows the contribution secret never leaves the worker; `snarkjs zkey verify` passes on the resulting chain |
+| 3 | `pyre-registry`, attestations, check page | registry rejects an off-curve key point and stores an on-chain-computed key hash; `attest` requires the attester's authorization; check page returns "sealed, N contributors, A attestations" for the rehearsal key and "no seal" for a single-person key; forgery demonstration passes on testnet |
+| 4 | Mainnet + first public ceremony | every prerequisite in [`docs/SECURITY.md`](docs/SECURITY.md#6-mainnet-prerequisites) met; immutable contracts deployed; ceremony closed with a committed beacon ledger; final key reproduced byte-for-byte on 2 independent machines; at least 2 attestations; check page shows the seal |
 
 ## Tech stack
 
-Soroban (Rust) for the ceremony and registry contracts · snarkjs for stage-two contributions and transcript checks · WebAuthn passkeys verified with Stellar's native secp256r1 host function · Stellar RPC for reads · a static web client.
+Soroban (Rust) for the ceremony and registry contracts · snarkjs for stage-two contributions, the beacon and transcript checks · passkey smart accounts (Stellar Smart Account Kit) with WebAuthn verified by Stellar's native secp256r1 host function · Stellar RPC for reads · content-addressed storage for key files · a static web client.
 
 ## Documentation
 
 | Doc | Read it for |
 | --- | --- |
 | [`docs/PITCH.md`](docs/PITCH.md) | The full technical pitch: mechanism, demo, risks |
+| [`docs/PROTOCOL.md`](docs/PROTOCOL.md) | The exact MPC, passkey authorization, randomness and Stellar host functions |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Guarantee, assumptions, trust and threat models, coordinator limits, mainnet prerequisites, recovery |
 | [`docs/EVIDENCE.md`](docs/EVIDENCE.md) | Every figure in this README with its source and how to re-derive it |
 | [`experiments/README.md`](experiments/README.md) | The three day-one checks and their real outputs |
 | [`scripts/scan-setups.py`](scripts/scan-setups.py) | Repo scan for setup scripts and key files |
